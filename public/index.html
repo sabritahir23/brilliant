@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Brilliant Scanner</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="panel">
+        <div class="topline">
+          <div>
+            <h1>Brilliant Scanner</h1>
+            <p>Fetch every public Chess.com PGN for a player and scan for brilliant-like moves.</p>
+          </div>
+          <span id="statusBadge" class="badge">Idle</span>
+        </div>
+
+        <form id="scanForm" class="form">
+          <label for="username">Chess.com username</label>
+          <div class="inputRow">
+            <input id="username" name="username" autocomplete="username" placeholder="sabreezy23" />
+            <button id="startButton" type="submit">Find Brilliant Moves</button>
+          </div>
+        </form>
+
+        <div class="actions primaryActions">
+          <button id="hikaruRestWindowButton" type="button">Start Hikaru 131-500 Review</button>
+          <button id="prototypeThirdWindowButton" type="button">Start 1001-1500 Review</button>
+          <button id="resumeWindowButton" type="button">Continue Scan</button>
+          <button id="pauseButton" type="button">Pause Current Scan</button>
+        </div>
+
+        <details class="advancedActions">
+          <summary>More actions</summary>
+          <div class="actions">
+            <button id="moveLabelsButton" type="button" class="secondary">Fill Move Labels</button>
+            <button id="prototypeButton" type="button" class="secondary">Update Official Review Baseline</button>
+            <button id="prototypeWindowButton" type="button" class="secondary">Official Review First 500</button>
+            <button id="prototypeNextWindowButton" type="button" class="secondary">Official Review 501-1000</button>
+            <button id="retryWindowErrorsButton" type="button" class="secondary">Retry First 500 Errors</button>
+            <button id="retryNextWindowErrorsButton" type="button" class="secondary">Retry 501-1000 Errors</button>
+            <button id="retryThirdWindowErrorsButton" type="button" class="secondary">Retry 1001-1500 Errors</button>
+            <button id="retryHikaruRestWindowErrorsButton" type="button" class="secondary">Retry Hikaru 131-500 Errors</button>
+            <button id="retryErrorsButton" type="button" class="secondary">Retry All Official Errors</button>
+            <button id="resetButton" type="button" class="secondary">Reset Saved State</button>
+          </div>
+        </details>
+
+        <div class="progressHeader">
+          <span id="progressLabel">Ready to fetch PGNs</span>
+          <span id="percentLabel">0%</span>
+        </div>
+        <div class="progressTrack">
+          <div id="progressFill" class="progressFill"></div>
+        </div>
+
+        <div class="stats">
+          <div>
+            <strong id="totalGames">0</strong>
+            <span>Total</span>
+          </div>
+          <div>
+            <strong id="scannedGames">0</strong>
+            <span>Scanned</span>
+          </div>
+          <div>
+            <strong id="foundGames">0</strong>
+            <span>Found</span>
+          </div>
+          <div>
+            <strong id="failedGames">0</strong>
+            <span>Errors</span>
+          </div>
+        </div>
+
+        <p id="message" class="message">Ready.</p>
+        <a id="currentGameLink" class="currentGame" href="#" target="_blank" rel="noreferrer" hidden>
+          Current game
+        </a>
+      </section>
+
+      <section class="grid">
+        <article class="panel">
+          <h2>Brilliant-Like Moves</h2>
+          <div id="results" class="list empty">No candidates found yet.</div>
+        </article>
+
+        <article class="panel">
+          <h2>Errors</h2>
+          <div id="errors" class="list empty">No errors yet.</div>
+        </article>
+      </section>
+    </main>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>

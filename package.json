@@ -1,0 +1,21 @@
+{
+  "name": "brilliant-scanner",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Personal Chess.com brilliant move scanner demo.",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node src/server.js",
+    "chrome": "node scripts/open-chrome.js",
+    "login": "node scripts/open-chrome.js",
+    "build-corpus": "node scripts/build-corpus.js",
+    "install-browser": "npx playwright install chromium"
+  },
+  "dependencies": {
+    "chess.js": "^1.4.0",
+    "express": "^5.2.1",
+    "playwright": "^1.60.0",
+    "stockfish": "^18.0.7"
+  }
+}
