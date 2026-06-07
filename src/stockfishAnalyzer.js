@@ -461,6 +461,13 @@ function evaluateEngineQualityGate(candidate, metrics) {
   const hasMaterialConcession = hasSacrifice || hasMaterialInvitation || hasExchangeInvestment;
   const afterMateForPlayer = isMateForPlayer(metrics.afterLine);
   const tacticalContext = inspectCandidateTacticalContext(candidate);
+  const acceptanceScoreForPlayer = metricNumber(
+    metrics.delayedCompensation?.acceptanceScoreForPlayer
+  );
+  const clearAcceptanceTurnaround =
+    metrics.delayedCompensation?.accepted &&
+    Number.isFinite(acceptanceScoreForPlayer) &&
+    acceptanceScoreForPlayer >= 100;
 
   if (candidate.piece === "k" && !afterMateForPlayer) {
     return rejectEngineQuality("king move excluded without a forced mating continuation", {
@@ -483,7 +490,41 @@ function evaluateEngineQualityGate(candidate, metrics) {
     });
   }
 
+  if (
+    hasSacrifice &&
+    Number.isFinite(bestScore) &&
+    bestScore <= -50 &&
+    Number.isFinite(afterScoreForPlayer) &&
+    afterScoreForPlayer <= -50 &&
+    !clearAcceptanceTurnaround &&
+    !afterMateForPlayer
+  ) {
+    return rejectEngineQuality(
+      "hope-chess sacrifice remains meaningfully worse after best play",
+      { tacticalContext }
+    );
+  }
+
+  if (
+    candidate.piece === "b" &&
+    candidate.captured === "p" &&
+    hasSacrifice &&
+    Number.isFinite(playedRank) &&
+    playedRank > 1 &&
+    Number.isFinite(scoreLoss) &&
+    scoreLoss > 0 &&
+    Number.isFinite(afterScoreForPlayer) &&
+    afterScoreForPlayer < 80 &&
+    !afterMateForPlayer
+  ) {
+    return rejectEngineQuality(
+      "bishop pawn sacrifice settles too close to equality behind a better move",
+      { tacticalContext }
+    );
+  }
+
   const alreadyHangingTradeOff =
+    candidate.piece === "b" &&
     !givesCheck &&
     (PIECE_VALUES[candidate.captured] || 0) <= 1 &&
     Boolean(candidate.materialInvitation?.bestCapture?.isMovedPiece) &&
@@ -495,6 +536,20 @@ function evaluateEngineQualityGate(candidate, metrics) {
       "material was already hanging and the move creates a direct trade-off attack",
       { tacticalContext }
     );
+  }
+
+  const ordinaryTacticWithoutConcession =
+    !hasSacrifice &&
+    !hasExchangeInvestment &&
+    tacticalContext.meaningfulAcceptanceOffers.length === 0 &&
+    !metrics.delayedCompensation?.accepted &&
+    candidate.captured === "p" &&
+    tacticalContext.directHighValueTargets.length > 0;
+
+  if (ordinaryTacticWithoutConcession && !afterMateForPlayer) {
+    return rejectEngineQuality("ordinary tactic without material concession", {
+      tacticalContext
+    });
   }
 
   if (
@@ -575,7 +630,8 @@ function inspectCandidateTacticalContext(candidate) {
     return {
       sourceWasAttacked: false,
       sourceAttackers: [],
-      directHighValueTargets: []
+      directHighValueTargets: [],
+      meaningfulAcceptanceOffers: []
     };
   }
 
@@ -607,7 +663,8 @@ function inspectCandidateTacticalContext(candidate) {
   return {
     sourceWasAttacked: sourceAttackers.length > 0,
     sourceAttackers,
-    directHighValueTargets
+    directHighValueTargets,
+    meaningfulAcceptanceOffers: findMeaningfulAcceptanceCaptures(after)
   };
 }
 

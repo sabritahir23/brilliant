@@ -84,8 +84,10 @@ a focused engine-line-first delayed-compensation path for sound, low-loss moves
 that allow a meaningful material capture while retaining compensation in the
 continuation. A final engine-quality gate also rejects candidates that are too far
 from the top lines, lose too much evaluation, throw away a winning position, or
-turn already-hanging material into an ordinary trade-off. These results remain
-local predictions, not official Chess.com Brilliant labels.
+turn already-hanging material into an ordinary trade-off. It also requires a real
+legal material concession for ordinary fork/check tactics and filters weak
+second-choice or hope-chess sacrifices. These results remain local predictions,
+not official Chess.com Brilliant labels.
 
 The latest 7yub Chess.com Review benchmark is shelved in `data/reference/` so
 local runs can overwrite `data/state.json` without losing the original 10/248
