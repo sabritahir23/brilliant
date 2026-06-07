@@ -484,13 +484,28 @@ function printReport(report) {
   printField("Eligible for Stockfish verification", yesNo(report.detector.verificationEligible));
   printField("Accepted", yesNo(report.detector.accepted));
   printField("Rejection reason", report.detector.rejectionReason || "none");
+  const engineQualityGate =
+    report.detector.verifiedCandidate?.engine?.engineQualityGate || null;
+  printField(
+    "Engine quality gate",
+    engineQualityGate
+      ? `${engineQualityGate.accepted ? "passed" : "rejected"}: ${engineQualityGate.reason}`
+      : report.detector.rawCandidate?.piece === "k"
+        ? "rejected before Stockfish verification: king move excluded by the shape gate"
+        : report.detector.verificationEligible
+          ? "not reached"
+          : "not evaluated because the move failed the shape gate"
+  );
   const productionDelayedCompensation =
     report.detector.verifiedCandidate?.engine?.delayedCompensation || null;
   printField(
     "Production delayed-compensation rule",
     productionDelayedCompensation
-      ? `${productionDelayedCompensation.accepted ? "passed" : "did not pass"}: ` +
-        productionDelayedCompensation.reason
+      ? `${productionDelayedCompensation.accepted
+          ? "passed"
+          : productionDelayedCompensation.analyzed
+            ? "did not pass"
+            : "not needed"}: ${productionDelayedCompensation.reason}`
       : report.detector.rawCandidate?.piece === "k"
         ? "not evaluated: king moves are excluded and this move failed the shape gate"
         : "not evaluated"

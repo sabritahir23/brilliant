@@ -163,6 +163,31 @@ export class StockfishAnalyzer {
       }
 
       const uniqueness = calculateUniqueness(before.lines);
+      const engineQualityGate = evaluateEngineQualityGate(candidate, {
+        playedRank: playedLine.multipv,
+        bestScore,
+        scoreLoss,
+        afterScoreForPlayer,
+        afterLine: after.lines[0],
+        uniqueness,
+        brilliancyProfile,
+        delayedCompensation
+      });
+
+      if (!engineQualityGate.accepted) {
+        return reject(candidate, engineQualityGate.reason, {
+          before,
+          bestScore,
+          scoreLoss,
+          after,
+          afterScoreForPlayer,
+          uniqueness,
+          brilliancyProfile,
+          delayedCompensation,
+          engineQualityGate
+        });
+      }
+
       const engineBonus = Math.max(0, 35 - Math.max(0, scoreLoss));
       const uniquenessBonus = Math.min(18, Math.round(uniqueness / 12));
       const verifiedScore = Math.min(100, candidate.score + engineBonus + uniquenessBonus);
@@ -185,12 +210,14 @@ export class StockfishAnalyzer {
           afterScoreForPlayer,
           uniqueness,
           brilliancyProfile,
-          delayedCompensation
+          delayedCompensation,
+          engineQualityGate
         },
         reasons: [
           ...candidate.reasons,
           getStockfishReason(playedLine),
           "sound after best reply",
+          engineQualityGate.reason,
           ...(delayedCompensation.accepted ? ["engine-line delayed compensation"] : [])
         ]
       };
@@ -419,6 +446,185 @@ function scoreForSideToMove(line) {
   }
 
   return Number.isFinite(line.cp) ? line.cp : 0;
+}
+
+function evaluateEngineQualityGate(candidate, metrics) {
+  const playedRank = metricNumber(metrics.playedRank);
+  const scoreLoss = metricNumber(metrics.scoreLoss);
+  const bestScore = metricNumber(metrics.bestScore);
+  const afterScoreForPlayer = metricNumber(metrics.afterScoreForPlayer);
+  const uniqueness = metricNumber(metrics.uniqueness);
+  const givesCheck = /[+#]/.test(candidate.san || "");
+  const hasSacrifice = Boolean(candidate.sacrifice?.isCandidate);
+  const hasMaterialInvitation = Boolean(candidate.materialInvitation?.isCandidate);
+  const hasExchangeInvestment = Boolean(candidate.exchangeInvestment?.isCandidate);
+  const hasMaterialConcession = hasSacrifice || hasMaterialInvitation || hasExchangeInvestment;
+  const afterMateForPlayer = isMateForPlayer(metrics.afterLine);
+  const tacticalContext = inspectCandidateTacticalContext(candidate);
+
+  if (candidate.piece === "k" && !afterMateForPlayer) {
+    return rejectEngineQuality("king move excluded without a forced mating continuation", {
+      tacticalContext
+    });
+  }
+
+  if (
+    Number.isFinite(bestScore) &&
+    Number.isFinite(afterScoreForPlayer) &&
+    (
+      (bestScore >= 300 && afterScoreForPlayer < 100) ||
+      (bestScore >= 150 && afterScoreForPlayer <= 0) ||
+      (bestScore >= 500 && bestScore - afterScoreForPlayer >= 250)
+    ) &&
+    !afterMateForPlayer
+  ) {
+    return rejectEngineQuality("winning position became drawn or materially worse", {
+      tacticalContext
+    });
+  }
+
+  const alreadyHangingTradeOff =
+    !givesCheck &&
+    (PIECE_VALUES[candidate.captured] || 0) <= 1 &&
+    Boolean(candidate.materialInvitation?.bestCapture?.isMovedPiece) &&
+    tacticalContext.sourceWasAttacked &&
+    tacticalContext.directHighValueTargets.some((target) => target.value >= 5);
+
+  if (alreadyHangingTradeOff && !afterMateForPlayer) {
+    return rejectEngineQuality(
+      "material was already hanging and the move creates a direct trade-off attack",
+      { tacticalContext }
+    );
+  }
+
+  if (
+    !hasMaterialConcession &&
+    !givesCheck &&
+    Number.isFinite(bestScore) &&
+    bestScore >= 500 &&
+    !afterMateForPlayer
+  ) {
+    return rejectEngineQuality(
+      "already-winning direct pressure is not a Brilliant-style sacrifice",
+      { tacticalContext }
+    );
+  }
+
+  if (metrics.delayedCompensation?.accepted) {
+    return acceptEngineQuality("engine-line delayed compensation met the quality requirements", {
+      tacticalContext
+    });
+  }
+
+  if (!Number.isFinite(playedRank) || playedRank > 3) {
+    return rejectEngineQuality("not close enough to the engine's top choices", {
+      tacticalContext
+    });
+  }
+
+  const forcingMaterialSacrifice =
+    hasSacrifice &&
+    hasMaterialInvitation &&
+    (
+      givesCheck ||
+      Boolean(candidate.captured) ||
+      hasReason(candidate, "creates immediate mate threat") ||
+      hasReason(candidate, "sacrifice near king")
+    );
+  const scoreLossLimit = forcingMaterialSacrifice ? 110 : 70;
+
+  if (!Number.isFinite(scoreLoss) || scoreLoss > scoreLossLimit) {
+    return rejectEngineQuality(
+      `score loss is too high for this ${forcingMaterialSacrifice ? "forcing sacrifice" : "candidate"} shape`,
+      { scoreLossLimit, tacticalContext }
+    );
+  }
+
+  const lowQualityDirectFork =
+    candidate.piece === "n" &&
+    candidate.captured === "p" &&
+    !givesCheck &&
+    tacticalContext.directHighValueTargets.some((target) => target.piece === "q") &&
+    Number.isFinite(bestScore) &&
+    bestScore < 180 &&
+    Number.isFinite(uniqueness) &&
+    uniqueness < 25;
+
+  if (lowQualityDirectFork && !afterMateForPlayer) {
+    return rejectEngineQuality(
+      "low-uniqueness direct fork is not strong enough for Brilliant classification",
+      { tacticalContext }
+    );
+  }
+
+  return acceptEngineQuality(
+    forcingMaterialSacrifice
+      ? "forcing sacrifice met the engine quality requirements"
+      : "top-line and low-loss requirements were met",
+    { scoreLossLimit, tacticalContext }
+  );
+}
+
+function inspectCandidateTacticalContext(candidate) {
+  const before = new Chess(candidate.fenBefore);
+  const from = candidate.lan?.slice(0, 2);
+  const to = candidate.lan?.slice(2, 4);
+  const movingPiece = from ? before.get(from) : null;
+
+  if (!movingPiece || !to) {
+    return {
+      sourceWasAttacked: false,
+      sourceAttackers: [],
+      directHighValueTargets: []
+    };
+  }
+
+  const opponent = movingPiece.color === "w" ? "b" : "w";
+  const sourceAttackers = before.attackers(from, opponent).map((square) => {
+    const piece = before.get(square);
+    return {
+      square,
+      piece: piece?.type || null,
+      value: PIECE_VALUES[piece?.type] || 0
+    };
+  });
+  const after = new Chess(candidate.fenAfter);
+  const directHighValueTargets = [];
+
+  for (const row of after.board()) {
+    for (const piece of row) {
+      if (!piece || piece.color !== opponent || piece.type === "k") continue;
+      const value = PIECE_VALUES[piece.type] || 0;
+      if (value < 3 || !after.attackers(piece.square, movingPiece.color).includes(to)) continue;
+      directHighValueTargets.push({
+        square: piece.square,
+        piece: piece.type,
+        value
+      });
+    }
+  }
+
+  return {
+    sourceWasAttacked: sourceAttackers.length > 0,
+    sourceAttackers,
+    directHighValueTargets
+  };
+}
+
+function acceptEngineQuality(reason, details = {}) {
+  return {
+    accepted: true,
+    reason,
+    ...details
+  };
+}
+
+function rejectEngineQuality(reason, details = {}) {
+  return {
+    accepted: false,
+    reason,
+    ...details
+  };
 }
 
 async function analyzeEngineLineDelayedCompensation(analyzer, candidate, metrics) {
