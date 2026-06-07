@@ -319,9 +319,12 @@ function describeDelayedCompensation({ material, acceptance, afterScoreForPlayer
 
   return {
     appearsDelayed: compensationSound && (immediateRecapture || acceptance.line.length > 0),
-    explanation: immediateRecapture
+    explanation: immediateRecapture && compensationSound
       ? `${acceptance.offer.san} can be met by ${acceptance.offer.recaptures.join(" or ")}; ` +
         `the tactical compensation appears after the offered material is accepted.`
+      : immediateRecapture
+        ? `${acceptance.offer.san} has an available recapture, but Stockfish still finds the ` +
+          "player's position unsound."
       : compensationSound
         ? `The offered material can be accepted, but Stockfish keeps the position sound through ` +
           `${firstReply || "the continuation"} rather than an immediate direct recapture.`
@@ -481,6 +484,25 @@ function printReport(report) {
   printField("Eligible for Stockfish verification", yesNo(report.detector.verificationEligible));
   printField("Accepted", yesNo(report.detector.accepted));
   printField("Rejection reason", report.detector.rejectionReason || "none");
+  const productionDelayedCompensation =
+    report.detector.verifiedCandidate?.engine?.delayedCompensation || null;
+  printField(
+    "Production delayed-compensation rule",
+    productionDelayedCompensation
+      ? `${productionDelayedCompensation.accepted ? "passed" : "did not pass"}: ` +
+        productionDelayedCompensation.reason
+      : report.detector.rawCandidate?.piece === "k"
+        ? "not evaluated: king moves are excluded and this move failed the shape gate"
+        : "not evaluated"
+  );
+  if (productionDelayedCompensation?.offer) {
+    printField(
+      "Production acceptance evidence",
+      `${productionDelayedCompensation.offer.san}; ` +
+        `${formatScore(productionDelayedCompensation.acceptanceScoreForPlayer)} after acceptance; ` +
+        `${productionDelayedCompensation.materialConcessionAfterReply} point(s) still conceded after the first reply`
+    );
+  }
 
   const fakeCandidate = (report.record.local?.rejectedCandidates || []).find(
     (candidate) => candidate.moveNumber === 28 && candidate.san === "Ka6"

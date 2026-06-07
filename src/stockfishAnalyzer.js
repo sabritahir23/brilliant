@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { createRequire } from "node:module";
+import { Chess } from "chess.js";
 
 const require = createRequire(import.meta.url);
 const STOCKFISH_ROOT = path.dirname(require.resolve("stockfish/package.json"));
@@ -129,13 +130,25 @@ export class StockfishAnalyzer {
         });
       }
 
-      const brilliancyProfile = classifyBrilliancyProfile(candidate, {
+      let brilliancyProfile = classifyBrilliancyProfile(candidate, {
         playedRank: playedLine.multipv,
         bestScore,
         scoreLoss,
         afterScoreForPlayer,
         afterLine: after.lines[0]
       });
+      const delayedCompensation = brilliancyProfile.accepted
+        ? notAnalyzedDelayedCompensation("existing brilliancy profile accepted the move")
+        : await analyzeEngineLineDelayedCompensation(this, candidate, {
+            playedRank: playedLine.multipv,
+            bestScore,
+            scoreLoss,
+            afterScoreForPlayer
+          });
+
+      if (!brilliancyProfile.accepted && delayedCompensation.accepted) {
+        brilliancyProfile = acceptProfile("engine-line delayed compensation");
+      }
 
       if (!brilliancyProfile.accepted) {
         return reject(candidate, brilliancyProfile.reason, {
@@ -144,7 +157,8 @@ export class StockfishAnalyzer {
           scoreLoss,
           after,
           afterScoreForPlayer,
-          brilliancyProfile
+          brilliancyProfile,
+          delayedCompensation
         });
       }
 
@@ -170,12 +184,14 @@ export class StockfishAnalyzer {
           afterBestMove: after.lines[0]?.bestMove || null,
           afterScoreForPlayer,
           uniqueness,
-          brilliancyProfile
+          brilliancyProfile,
+          delayedCompensation
         },
         reasons: [
           ...candidate.reasons,
           getStockfishReason(playedLine),
-          "sound after best reply"
+          "sound after best reply",
+          ...(delayedCompensation.accepted ? ["engine-line delayed compensation"] : [])
         ]
       };
     } catch (error) {
@@ -403,6 +419,192 @@ function scoreForSideToMove(line) {
   }
 
   return Number.isFinite(line.cp) ? line.cp : 0;
+}
+
+async function analyzeEngineLineDelayedCompensation(analyzer, candidate, metrics) {
+  const playedRank = metricNumber(metrics.playedRank);
+  const scoreLoss = metricNumber(metrics.scoreLoss);
+  const bestScore = metricNumber(metrics.bestScore);
+  const afterScoreForPlayer = metricNumber(metrics.afterScoreForPlayer);
+  const materialBalanceBefore = metricNumber(candidate.materialBalanceBefore);
+  const engineSupported =
+    (
+      Number.isFinite(playedRank) &&
+      playedRank <= 3 &&
+      Number.isFinite(scoreLoss) &&
+      scoreLoss <= 90
+    ) ||
+    (Number.isFinite(scoreLoss) && scoreLoss <= 35);
+
+  if (candidate.piece === "k") {
+    return notAnalyzedDelayedCompensation("king moves are excluded from the delayed-compensation path");
+  }
+  if (!candidate.materialInvitation?.isCandidate) {
+    return notAnalyzedDelayedCompensation("no material invitation was detected");
+  }
+  if ((PIECE_VALUES[candidate.captured] || 0) > 1) {
+    return notAnalyzedDelayedCompensation("the move directly wins high-value material");
+  }
+  if (!engineSupported) {
+    return notAnalyzedDelayedCompensation("the move is not top-three or low-loss enough");
+  }
+  if (
+    !Number.isFinite(bestScore) ||
+    bestScore < -80 ||
+    bestScore > 600 ||
+    !Number.isFinite(afterScoreForPlayer) ||
+    afterScoreForPlayer < -80 ||
+    afterScoreForPlayer > 600
+  ) {
+    return notAnalyzedDelayedCompensation("the position is not competitive and sound enough");
+  }
+  if (
+    !Number.isFinite(materialBalanceBefore) ||
+    materialBalanceBefore < -3 ||
+    materialBalanceBefore > 3
+  ) {
+    return notAnalyzedDelayedCompensation("the starting material balance is outside the focused window");
+  }
+
+  const boardAfterMove = new Chess(candidate.fenAfter);
+  const playerColor = boardAfterMove.turn() === "w" ? "b" : "w";
+  if (movedPieceAttacksHighValueTarget(boardAfterMove, candidate, playerColor)) {
+    return notAnalyzedDelayedCompensation("the move directly attacks high-value material");
+  }
+
+  const offers = findMeaningfulAcceptanceCaptures(boardAfterMove);
+  if (!offers.length) {
+    return notAnalyzedDelayedCompensation("no legal meaningful material acceptance was found");
+  }
+
+  const balanceAfterMove = materialBalanceForColor(boardAfterMove, playerColor);
+  const offer = offers[0];
+  const acceptedBoard = new Chess(candidate.fenAfter);
+  const acceptedMove = acceptedBoard.move({
+    from: offer.from,
+    to: offer.to,
+    promotion: offer.promotion
+  });
+  const acceptance = await analyzer.analyzeFen(acceptedBoard.fen(), { multipv: 1 });
+  const acceptanceLine = acceptance.lines[0] || null;
+  const acceptanceScoreForPlayer = scoreForSideToMove(acceptanceLine);
+  const replyBoard = new Chess(acceptedBoard.fen());
+  const firstReply = applyLan(replyBoard, acceptanceLine?.bestMove);
+  const materialConcessionAfterReply = firstReply
+    ? balanceAfterMove - materialBalanceForColor(replyBoard, playerColor)
+    : null;
+  const directRecapture = Boolean(
+    firstReply?.captured &&
+    firstReply.to === acceptedMove.to
+  );
+  const acceptanceIsPlausible =
+    acceptanceScoreForPlayer >= -80 &&
+    acceptanceScoreForPlayer <= afterScoreForPlayer + 160;
+  const compensationIsDelayed =
+    Boolean(firstReply) &&
+    Number.isFinite(materialConcessionAfterReply) &&
+    materialConcessionAfterReply >= 1;
+  const accepted = acceptanceIsPlausible && compensationIsDelayed;
+
+  return {
+    analyzed: true,
+    accepted,
+    reason: accepted
+      ? "engine-supported move remains sound after a meaningful material acceptance"
+      : !acceptanceIsPlausible
+        ? "the material acceptance is unsound or too implausible for the opponent"
+        : "the engine reply does not preserve a meaningful material concession",
+    offer: {
+      san: acceptedMove.san,
+      lan: offer.lan,
+      attacker: offer.attacker,
+      captured: offer.captured,
+      targetValue: offer.targetValue,
+      attackerValue: offer.attackerValue,
+      materialGain: offer.materialGain
+    },
+    acceptanceScoreForPlayer,
+    acceptanceBestMove: acceptanceLine?.bestMove || null,
+    acceptancePv: acceptanceLine?.pv || [],
+    directRecapture,
+    materialConcessionAfterReply
+  };
+}
+
+function findMeaningfulAcceptanceCaptures(board) {
+  return board
+    .moves({ verbose: true })
+    .filter((move) => move.captured)
+    .map((move) => {
+      const targetValue = PIECE_VALUES[move.captured] || 0;
+      const attackerValue = PIECE_VALUES[move.piece] || 0;
+      return {
+        from: move.from,
+        to: move.to,
+        promotion: move.promotion,
+        lan: `${move.from}${move.to}${move.promotion || ""}`,
+        attacker: move.piece,
+        captured: move.captured,
+        targetValue,
+        attackerValue,
+        materialGain: targetValue - attackerValue
+      };
+    })
+    .filter((offer) => offer.targetValue >= 3 && offer.materialGain >= 2)
+    .sort((a, b) => b.targetValue - a.targetValue || b.materialGain - a.materialGain);
+}
+
+function movedPieceAttacksHighValueTarget(board, candidate, playerColor) {
+  const movedSquare = candidate.lan?.slice(2, 4);
+  if (!movedSquare) return false;
+  const opponentColor = playerColor === "w" ? "b" : "w";
+
+  for (const row of board.board()) {
+    for (const piece of row) {
+      if (!piece || piece.color !== opponentColor || piece.type === "k") continue;
+      if ((PIECE_VALUES[piece.type] || 0) < 3) continue;
+      if (board.attackers(piece.square, playerColor).includes(movedSquare)) return true;
+    }
+  }
+
+  return false;
+}
+
+function materialBalanceForColor(board, color) {
+  let balance = 0;
+
+  for (const row of board.board()) {
+    for (const piece of row) {
+      if (!piece) continue;
+      const value = PIECE_VALUES[piece.type] || 0;
+      balance += piece.color === color ? value : -value;
+    }
+  }
+
+  return balance;
+}
+
+function applyLan(board, lan) {
+  const match = String(lan || "").match(/^([a-h][1-8])([a-h][1-8])([qrbn])?$/);
+  if (!match) return null;
+
+  try {
+    return board.move({
+      from: match[1],
+      to: match[2],
+      promotion: match[3]
+    });
+  } catch {
+    return null;
+  }
+}
+
+function notAnalyzedDelayedCompensation(reason) {
+  return {
+    analyzed: false,
+    accepted: false,
+    reason
+  };
 }
 
 function isMateForPlayer(line) {

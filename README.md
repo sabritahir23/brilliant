@@ -79,8 +79,11 @@ npm run diagnose-brilliant -- Witty_Alien --game https://www.chess.com/game/live
 ```
 
 This known official Chess.com Brilliant label is a diagnostic validation case
-only. It is not hardcoded into detector behavior, and the command does not change
-production acceptance logic or corpus data.
+only and is not hardcoded into detector behavior. The production verifier includes
+a focused engine-line-first delayed-compensation path for sound, low-loss moves
+that allow a meaningful material capture while retaining compensation in the
+continuation. These results remain local predictions, not official Chess.com
+Brilliant labels.
 
 The latest 7yub Chess.com Review benchmark is shelved in `data/reference/` so
 local runs can overwrite `data/state.json` without losing the original 10/248
