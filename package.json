@@ -10,6 +10,7 @@
     "chrome": "node scripts/open-chrome.js",
     "login": "node scripts/open-chrome.js",
     "build-corpus": "node scripts/build-corpus.js",
+    "pgn-batch": "node scripts/run-pgn-batch.js",
     "install-browser": "npx playwright install chromium"
   },
   "dependencies": {

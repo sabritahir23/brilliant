@@ -47,6 +47,28 @@ Useful local-analysis settings:
 - `BRILLIANT_STOCKFISH_ENGINE=full` selects the bundled Stockfish.js engine flavor.
 - `BRILLIANT_STOCKFISH_TIMEOUT_MS=12000` controls the per-search watchdog. If Stockfish does not return `bestmove` in time, the child process is restarted and that candidate is rejected instead of hanging the scan.
 
+## Bounded PGN Batch Runner
+
+Use the CLI runner to analyze a manageable chronological slice instead of scanning
+an entire large account:
+
+```bash
+npm run pgn-batch -- wittyalien --from 2024-01-01 --limit 1000
+npm run pgn-batch -- wittyalien --continue --limit 1000
+npm run pgn-batch -- wittyalien --from 2023-01-01 --until 2024-01-01 --limit 1000
+```
+
+The start date is inclusive and `--until` is exclusive, both in UTC. Bullet games
+are excluded by default; use repeatable `--exclude-time-class` options or an
+`--include-time-class` allowlist to adjust the selection. The runner stops after
+the requested number of eligible games, runs the existing local detector, and
+saves progress to `data/corpus/<username>/batch-state.json`. JSON and JSONL reports
+are written under `data/reports/`.
+
+This runner prepares corpus data for future review queue generation. Its
+Brilliant-like candidates are local predictions, not official Chess.com Brilliant
+labels. Use `--dry-run` to inspect a batch without analyzing games or writing data.
+
 The latest 7yub Chess.com Review benchmark is shelved in `data/reference/` so
 local runs can overwrite `data/state.json` without losing the original 10/248
 reference result.
