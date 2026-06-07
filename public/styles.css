@@ -72,9 +72,23 @@ h2 {
   margin-bottom: 14px;
 }
 
-.topline p {
-  margin-top: 8px;
+.eyebrow {
+  color: var(--green-2);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.topline .eyebrow {
+  margin-bottom: 8px;
+}
+
+.topline .lede {
+  max-width: 720px;
+  margin-top: 10px;
   color: var(--muted);
+  line-height: 1.5;
 }
 
 .badge {
@@ -120,6 +134,17 @@ input:not([type]) {
 
 input:focus {
   border-color: var(--green);
+}
+
+.fieldHelp,
+.sectionDescription {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.fieldHelp {
+  margin-top: 8px;
 }
 
 button {
@@ -190,6 +215,19 @@ button.smallButton {
   padding-top: 8px;
 }
 
+.advancedCopy {
+  max-width: 760px;
+  margin-top: 8px;
+}
+
+.advancedCopy p {
+  line-height: 1.5;
+}
+
+.advancedCopy p + p {
+  margin-top: 8px;
+}
+
 .progressHeader {
   display: flex;
   justify-content: space-between;
@@ -255,6 +293,75 @@ button.smallButton {
   grid-template-columns: 1fr 1fr;
   gap: 16px;
   margin-top: 16px;
+}
+
+.workflow {
+  margin-top: 16px;
+}
+
+.sectionIntro {
+  max-width: 840px;
+}
+
+.sectionIntro h2 {
+  margin-top: 6px;
+  font-size: clamp(20px, 3vw, 28px);
+}
+
+.sectionIntro > p:last-child {
+  margin-top: 10px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.workflowSteps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: workflow;
+}
+
+.workflowSteps li {
+  min-width: 0;
+  padding: 14px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  counter-increment: workflow;
+}
+
+.workflowSteps strong {
+  display: block;
+  color: var(--green-2);
+}
+
+.workflowSteps strong::before {
+  content: counter(workflow) ". ";
+  color: var(--muted);
+}
+
+.workflowSteps span {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.controlNote {
+  margin-top: 14px;
+  padding: 12px 14px;
+  color: var(--muted);
+  background: #181d19;
+  border-left: 3px solid var(--yellow);
+  line-height: 1.55;
+}
+
+.sectionDescription {
+  margin: -6px 0 14px;
 }
 
 .sectionHeader,
@@ -330,11 +437,16 @@ button.smallButton {
 
 @media (max-width: 760px) {
   .grid,
-  .stats {
+  .stats,
+  .workflowSteps {
     grid-template-columns: 1fr;
   }
 
   .inputRow {
     flex-direction: column;
+  }
+
+  .topline {
+    align-items: flex-start;
   }
 }

@@ -2,17 +2,9 @@ const form = document.querySelector("#scanForm");
 const usernameInput = document.querySelector("#username");
 const startButton = document.querySelector("#startButton");
 const prototypeButton = document.querySelector("#prototypeButton");
-const prototypeWindowButton = document.querySelector("#prototypeWindowButton");
-const prototypeNextWindowButton = document.querySelector("#prototypeNextWindowButton");
-const prototypeThirdWindowButton = document.querySelector("#prototypeThirdWindowButton");
-const hikaruRestWindowButton = document.querySelector("#hikaruRestWindowButton");
 const resumeWindowButton = document.querySelector("#resumeWindowButton");
 const moveLabelsButton = document.querySelector("#moveLabelsButton");
 const retryErrorsButton = document.querySelector("#retryErrorsButton");
-const retryWindowErrorsButton = document.querySelector("#retryWindowErrorsButton");
-const retryNextWindowErrorsButton = document.querySelector("#retryNextWindowErrorsButton");
-const retryThirdWindowErrorsButton = document.querySelector("#retryThirdWindowErrorsButton");
-const retryHikaruRestWindowErrorsButton = document.querySelector("#retryHikaruRestWindowErrorsButton");
 const pauseButton = document.querySelector("#pauseButton");
 const resetButton = document.querySelector("#resetButton");
 const statusBadge = document.querySelector("#statusBadge");
@@ -25,10 +17,10 @@ const foundGames = document.querySelector("#foundGames");
 const failedGames = document.querySelector("#failedGames");
 const message = document.querySelector("#message");
 const currentGameLink = document.querySelector("#currentGameLink");
+const resultsTitle = document.querySelector("#resultsTitle");
+const resultsDescription = document.querySelector("#resultsDescription");
 const results = document.querySelector("#results");
 const errors = document.querySelector("#errors");
-
-const HIKARU_REST_ANCHOR_URL = "https://www.chess.com/game/live/172051815101";
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -70,80 +62,6 @@ prototypeButton.addEventListener("click", async () => {
 
   const payload = await response.json();
   if (!response.ok) alert(payload.error || "Failed to start prototype baseline update.");
-  await refreshStatus();
-});
-
-prototypeWindowButton.addEventListener("click", async () => {
-  const username = usernameInput.value.trim();
-  if (!username) {
-    alert("Enter your Chess.com username first.");
-    return;
-  }
-
-  const response = await fetch("/api/prototype/window", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, first: 500, offset: 0, order: "oldest" })
-  });
-
-  const payload = await response.json();
-  if (!response.ok) alert(payload.error || "Failed to start first-500 official review scan.");
-  await refreshStatus();
-});
-
-prototypeNextWindowButton.addEventListener("click", async () => {
-  const username = usernameInput.value.trim();
-  if (!username) {
-    alert("Enter your Chess.com username first.");
-    return;
-  }
-
-  const response = await fetch("/api/prototype/window", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, first: 500, offset: 500, order: "oldest" })
-  });
-
-  const payload = await response.json();
-  if (!response.ok) alert(payload.error || "Failed to start games 501-1000 official review scan.");
-  await refreshStatus();
-});
-
-prototypeThirdWindowButton.addEventListener("click", async () => {
-  const username = usernameInput.value.trim();
-  if (!username) {
-    alert("Enter your Chess.com username first.");
-    return;
-  }
-
-  const response = await fetch("/api/prototype/window", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, first: 500, offset: 1000, order: "oldest" })
-  });
-
-  const payload = await response.json();
-  if (!response.ok) alert(payload.error || "Failed to start games 1001-1500 official review scan.");
-  await refreshStatus();
-});
-
-hikaruRestWindowButton.addEventListener("click", async () => {
-  usernameInput.value = "hikaru";
-
-  const response = await fetch("/api/prototype/window", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      username: "hikaru",
-      first: 370,
-      offset: 0,
-      order: "oldest",
-      afterUrl: HIKARU_REST_ANCHOR_URL
-    })
-  });
-
-  const payload = await response.json();
-  if (!response.ok) alert(payload.error || "Failed to start Hikaru games 131-500 official review scan.");
   await refreshStatus();
 });
 
@@ -191,80 +109,6 @@ retryErrorsButton.addEventListener("click", async () => {
 
   const payload = await response.json();
   if (!response.ok) alert(payload.error || "Failed to retry official review errors.");
-  await refreshStatus();
-});
-
-retryWindowErrorsButton.addEventListener("click", async () => {
-  const username = usernameInput.value.trim();
-  if (!username) {
-    alert("Enter your Chess.com username first.");
-    return;
-  }
-
-  const response = await fetch("/api/prototype/window/retry-errors", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, first: 500, offset: 0, order: "oldest" })
-  });
-
-  const payload = await response.json();
-  if (!response.ok) alert(payload.error || "Failed to retry first-500 official review errors.");
-  await refreshStatus();
-});
-
-retryNextWindowErrorsButton.addEventListener("click", async () => {
-  const username = usernameInput.value.trim();
-  if (!username) {
-    alert("Enter your Chess.com username first.");
-    return;
-  }
-
-  const response = await fetch("/api/prototype/window/retry-errors", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, first: 500, offset: 500, order: "oldest" })
-  });
-
-  const payload = await response.json();
-  if (!response.ok) alert(payload.error || "Failed to retry games 501-1000 official review errors.");
-  await refreshStatus();
-});
-
-retryThirdWindowErrorsButton.addEventListener("click", async () => {
-  const username = usernameInput.value.trim();
-  if (!username) {
-    alert("Enter your Chess.com username first.");
-    return;
-  }
-
-  const response = await fetch("/api/prototype/window/retry-errors", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, first: 500, offset: 1000, order: "oldest" })
-  });
-
-  const payload = await response.json();
-  if (!response.ok) alert(payload.error || "Failed to retry games 1001-1500 official review errors.");
-  await refreshStatus();
-});
-
-retryHikaruRestWindowErrorsButton.addEventListener("click", async () => {
-  usernameInput.value = "hikaru";
-
-  const response = await fetch("/api/prototype/window/retry-errors", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      username: "hikaru",
-      first: 370,
-      offset: 0,
-      order: "oldest",
-      afterUrl: HIKARU_REST_ANCHOR_URL
-    })
-  });
-
-  const payload = await response.json();
-  if (!response.ok) alert(payload.error || "Failed to retry Hikaru games 131-500 official review errors.");
   await refreshStatus();
 });
 
@@ -319,6 +163,15 @@ function render(state) {
   failedGames.textContent = state.failed || 0;
   message.textContent = state.message || "Ready.";
 
+  const isOfficialReview = String(state.mode || "").startsWith("prototype") ||
+    String(state.baseline?.source || "").startsWith("prototype");
+  resultsTitle.textContent = isOfficialReview
+    ? "Official Chess.com Labels"
+    : "Brilliant-Like Candidate Games";
+  resultsDescription.textContent = isOfficialReview
+    ? "Labels collected from Chess.com Review for reference and detector evaluation."
+    : "Local predictions to rank for a future review queue.";
+
   const hasWindow = hasCurrentWindow(state);
   const hasPending = hasPendingWindowGames(state);
   const hasErrors = (state.failed || 0) > 0;
@@ -329,21 +182,11 @@ function render(state) {
   startButton.hidden = state.isRunning || canActOnCurrentWindow;
   startButton.disabled = state.isRunning;
   prototypeButton.disabled = state.isRunning;
-  prototypeWindowButton.disabled = state.isRunning;
-  prototypeNextWindowButton.disabled = state.isRunning;
-  prototypeThirdWindowButton.hidden = state.isRunning || canActOnCurrentWindow;
-  prototypeThirdWindowButton.disabled = state.isRunning;
-  hikaruRestWindowButton.hidden = state.isRunning || canActOnCurrentWindow;
-  hikaruRestWindowButton.disabled = state.isRunning;
   resumeWindowButton.hidden = state.isRunning || !canActOnCurrentWindow;
   resumeWindowButton.disabled = state.isRunning || !canActOnCurrentWindow;
   resumeWindowButton.textContent = getResumeWindowLabel(state);
   moveLabelsButton.disabled = state.isRunning || hasPending || hasErrors || !hasWindow || !(state.found > 0);
   retryErrorsButton.disabled = state.isRunning;
-  retryWindowErrorsButton.disabled = state.isRunning;
-  retryNextWindowErrorsButton.disabled = state.isRunning;
-  retryThirdWindowErrorsButton.disabled = state.isRunning;
-  retryHikaruRestWindowErrorsButton.disabled = state.isRunning;
 
   const currentGameUrl = state.currentGame?.url || state.currentGame?.reviewUrl;
   if (currentGameUrl) {

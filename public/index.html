@@ -11,8 +11,12 @@
       <section class="panel">
         <div class="topline">
           <div>
+            <p class="eyebrow">Detector-first workflow</p>
             <h1>Brilliant Scanner</h1>
-            <p>Fetch every public Chess.com PGN for a player and scan for brilliant-like moves.</p>
+            <p class="lede">
+              Fetch public Chess.com PGNs and use the local detector to find
+              Brilliant-like candidates worth prioritizing for review.
+            </p>
           </div>
           <span id="statusBadge" class="badge">Idle</span>
         </div>
@@ -21,28 +25,33 @@
           <label for="username">Chess.com username</label>
           <div class="inputRow">
             <input id="username" name="username" autocomplete="username" placeholder="sabreezy23" />
-            <button id="startButton" type="submit">Find Brilliant Moves</button>
+            <button id="startButton" type="submit">Scan PGNs Locally</button>
           </div>
+          <p class="fieldHelp">
+            Local results are predictions, not official Chess.com Brilliant labels.
+          </p>
         </form>
 
         <div class="actions primaryActions">
-          <button id="hikaruRestWindowButton" type="button">Start Hikaru 131-500 Review</button>
-          <button id="prototypeThirdWindowButton" type="button">Start 1001-1500 Review</button>
-          <button id="resumeWindowButton" type="button">Continue Scan</button>
           <button id="pauseButton" type="button">Pause Current Scan</button>
         </div>
 
         <details class="advancedActions">
-          <summary>More actions</summary>
+          <summary>Legacy official-review and maintenance tools</summary>
+          <div class="advancedCopy">
+            <p>
+              These reference tools collect official Chess.com labels or repair older
+              review runs. They are not the primary workflow.
+            </p>
+            <p>
+              The current direction is to rank local candidates first, then review a
+              selective queue of top-ranked games plus a random/control sample.
+            </p>
+          </div>
           <div class="actions">
-            <button id="moveLabelsButton" type="button" class="secondary">Fill Move Labels</button>
-            <button id="prototypeButton" type="button" class="secondary">Update Official Review Baseline</button>
-            <button id="prototypeWindowButton" type="button" class="secondary">Official Review First 500</button>
-            <button id="prototypeNextWindowButton" type="button" class="secondary">Official Review 501-1000</button>
-            <button id="retryWindowErrorsButton" type="button" class="secondary">Retry First 500 Errors</button>
-            <button id="retryNextWindowErrorsButton" type="button" class="secondary">Retry 501-1000 Errors</button>
-            <button id="retryThirdWindowErrorsButton" type="button" class="secondary">Retry 1001-1500 Errors</button>
-            <button id="retryHikaruRestWindowErrorsButton" type="button" class="secondary">Retry Hikaru 131-500 Errors</button>
+            <button id="prototypeButton" type="button" class="secondary">Collect New Official Labels</button>
+            <button id="resumeWindowButton" type="button" class="secondary">Resume Saved Official Review</button>
+            <button id="moveLabelsButton" type="button" class="secondary">Fill Missing Official Move Labels</button>
             <button id="retryErrorsButton" type="button" class="secondary">Retry All Official Errors</button>
             <button id="resetButton" type="button" class="secondary">Reset Saved State</button>
           </div>
@@ -81,9 +90,35 @@
         </a>
       </section>
 
+      <section class="workflow panel" aria-labelledby="workflowTitle">
+        <div class="sectionIntro">
+          <p class="eyebrow">Review queue phase</p>
+          <h2 id="workflowTitle">Find signal locally, spend official reviews carefully</h2>
+          <p>
+            We fetch lots of PGNs first, run the local detector quickly, rank likely
+            Brilliant-like games, send top-ranked plus random/control games to Chess.com
+            Review, then use those official labels to improve the detector.
+          </p>
+        </div>
+        <ol class="workflowSteps">
+          <li><strong>Fetch</strong><span>Build a broad PGN pool.</span></li>
+          <li><strong>Predict</strong><span>Find and rank Brilliant-like candidates locally.</span></li>
+          <li><strong>Review</strong><span>Check top-ranked and random/control games officially.</span></li>
+          <li><strong>Learn</strong><span>Use official labels to evaluate and improve the detector.</span></li>
+        </ol>
+        <p class="controlNote">
+          Random/control sampling helps avoid bias, reveals candidates the current detector
+          misses, and gives a more honest view of recall. Ranked queue generation is a future
+          implementation step; this screen currently prepares the local candidate pool.
+        </p>
+      </section>
+
       <section class="grid">
         <article class="panel">
-          <h2>Brilliant-Like Moves</h2>
+          <h2 id="resultsTitle">Brilliant-Like Candidate Games</h2>
+          <p id="resultsDescription" class="sectionDescription">
+            Local predictions to rank for a future review queue.
+          </p>
           <div id="results" class="list empty">No candidates found yet.</div>
         </article>
 
