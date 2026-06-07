@@ -69,6 +69,19 @@ This runner prepares corpus data for future review queue generation. Its
 Brilliant-like candidates are local predictions, not official Chess.com Brilliant
 labels. Use `--dry-run` to inspect a batch without analyzing games or writing data.
 
+## Brilliant Move Diagnostic
+
+Use the read-only diagnostic CLI to inspect one corpus move with Stockfish before
+and after analysis, material-offer details, and the current detector disposition:
+
+```bash
+npm run diagnose-brilliant -- Witty_Alien --game https://www.chess.com/game/live/97847462193 --move "15...fxe4"
+```
+
+This known official Chess.com Brilliant label is a diagnostic validation case
+only. It is not hardcoded into detector behavior, and the command does not change
+production acceptance logic or corpus data.
+
 The latest 7yub Chess.com Review benchmark is shelved in `data/reference/` so
 local runs can overwrite `data/state.json` without losing the original 10/248
 reference result.
