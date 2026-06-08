@@ -565,6 +565,87 @@ function evaluateEngineQualityGate(candidate, metrics) {
     );
   }
 
+  const noMeaningfulMaterialOffer =
+    tacticalContext.meaningfulAcceptanceOffers.length === 0 &&
+    !metrics.delayedCompensation?.accepted;
+
+  if (
+    noMeaningfulMaterialOffer &&
+    givesCheck &&
+    !candidate.captured &&
+    ["b", "r", "q"].includes(candidate.piece) &&
+    !afterMateForPlayer
+  ) {
+    return rejectEngineQuality("no real material concession behind the checking tactic", {
+      tacticalContext
+    });
+  }
+
+  const protectedKnightThreat =
+    candidate.piece === "n" &&
+    !candidate.captured &&
+    !givesCheck &&
+    hasReason(candidate, "creates immediate mate threat") &&
+    candidate.materialInvitation?.bestCapture?.isMovedPiece &&
+    candidate.materialInvitation?.bestCapture?.targetValue === 3 &&
+    candidate.materialInvitation?.bestCapture?.recapturable &&
+    Number.isFinite(bestScore) &&
+    bestScore >= 450 &&
+    Number.isFinite(afterScoreForPlayer) &&
+    afterScoreForPlayer >= 450 &&
+    Number.isFinite(scoreLoss) &&
+    scoreLoss <= 45;
+
+  if (protectedKnightThreat && !afterMateForPlayer) {
+    return rejectEngineQuality("protected tactical knight threat is not a true material concession", {
+      tacticalContext
+    });
+  }
+
+  const underDefendedPawnWin =
+    candidate.piece === "b" &&
+    candidate.captured === "p" &&
+    !givesCheck &&
+    candidate.materialInvitation?.bestCapture?.isMovedPiece &&
+    candidate.materialInvitation?.bestCapture?.targetValue === 3 &&
+    candidate.materialInvitation?.bestCapture?.recapturable &&
+    tacticalContext.meaningfulAcceptanceOffers.length <= 1 &&
+    tacticalContext.directHighValueTargets.length > 0 &&
+    Number.isFinite(playedRank) &&
+    playedRank === 1 &&
+    Number.isFinite(scoreLoss) &&
+    scoreLoss <= 10 &&
+    Number.isFinite(bestScore) &&
+    bestScore <= 220 &&
+    Number.isFinite(afterScoreForPlayer) &&
+    afterScoreForPlayer <= 240;
+
+  if (underDefendedPawnWin && !afterMateForPlayer) {
+    return rejectEngineQuality("under-defended pawn win with protected bishop, not a true sacrifice", {
+      tacticalContext
+    });
+  }
+
+  const bishopPawnCheckDesperado =
+    candidate.piece === "b" &&
+    candidate.captured === "p" &&
+    givesCheck &&
+    tacticalContext.sourceWasAttacked &&
+    candidate.materialInvitation?.bestCapture?.isMovedPiece &&
+    candidate.materialInvitation?.bestCapture?.targetValue === 3 &&
+    Number.isFinite(bestScore) &&
+    bestScore >= 450 &&
+    Number.isFinite(afterScoreForPlayer) &&
+    afterScoreForPlayer >= 550 &&
+    Number.isFinite(scoreLoss) &&
+    scoreLoss <= 20;
+
+  if (bishopPawnCheckDesperado && !afterMateForPlayer) {
+    return rejectEngineQuality("checking bishop pawn capture looks like already-doomed-material desperado", {
+      tacticalContext
+    });
+  }
+
   if (metrics.delayedCompensation?.accepted) {
     return acceptEngineQuality("engine-line delayed compensation met the quality requirements", {
       tacticalContext

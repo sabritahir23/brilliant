@@ -43,7 +43,9 @@ async function main() {
   }
   if (!record.pgn) throw new Error("The selected corpus game has no PGN.");
 
-  const target = locateMove(record.pgn, options.move);
+  const target = options.ply
+    ? locateMoveByPly(record.pgn, options.ply)
+    : locateMove(record.pgn, options.move);
   const rawCandidates = analyzePgnForBrilliancyCandidates(corpusRecordToGame(record), {
     limit: Infinity
   });
@@ -102,6 +104,7 @@ function parseArgs(args) {
     username: null,
     game: null,
     move: null,
+    ply: null,
     help: false
   };
 
@@ -123,13 +126,15 @@ function parseArgs(args) {
     if (!value || value.startsWith("--")) throw new Error(`${name} requires a value.`);
     if (name === "--game") options.game = value;
     else if (name === "--move") options.move = value;
+    else if (name === "--ply") options.ply = Number(value);
     else throw new Error(`Unknown option: ${name}`);
   }
 
   if (options.help) return options;
   if (!options.username) throw new Error("A corpus username is required.");
   if (!options.game) throw new Error("--game is required.");
-  if (!options.move) throw new Error("--move is required.");
+  if (!options.move && !Number.isFinite(options.ply)) throw new Error("--move or --ply is required.");
+  if (options.move && Number.isFinite(options.ply)) throw new Error("Use only one of --move or --ply.");
   return options;
 }
 
@@ -193,6 +198,52 @@ function locateMove(pgn, moveLabel) {
   }
 
   throw new Error(`Move not found in PGN: ${moveLabel}`);
+}
+
+function locateMoveByPly(pgn, ply) {
+  const requestedPly = Number(ply);
+  if (!Number.isInteger(requestedPly) || requestedPly < 1) {
+    throw new Error("--ply must be a positive integer.");
+  }
+
+  const source = new Chess();
+  source.loadPgn(pgn);
+  const moves = source.history({ verbose: true });
+  const headers = source.header();
+  const replay = headers.SetUp === "1" && headers.FEN ? new Chess(headers.FEN) : new Chess();
+
+  for (let index = 0; index < moves.length; index += 1) {
+    const move = moves[index];
+    const moveNumber = Math.floor(index / 2) + 1;
+    const color = move.color === "w" ? "white" : "black";
+    const fenBefore = replay.fen();
+    const played = replay.move({
+      from: move.from,
+      to: move.to,
+      promotion: move.promotion
+    });
+
+    if (index + 1 === requestedPly) {
+      return {
+        label: formatMoveLabel(moveNumber, color, played.san),
+        requestedLabel: `ply ${requestedPly}`,
+        moveNumber,
+        color,
+        colorCode: move.color,
+        ply: index + 1,
+        san: played.san,
+        lan: `${played.from}${played.to}${played.promotion || ""}`,
+        piece: played.piece,
+        captured: played.captured || null,
+        from: played.from,
+        to: played.to,
+        fenBefore,
+        fenAfter: replay.fen()
+      };
+    }
+  }
+
+  throw new Error(`Ply not found in PGN: ${requestedPly}`);
 }
 
 function parseMoveLabel(value) {
@@ -670,9 +721,14 @@ function corpusRecordToGame(record) {
 function printHelp() {
   console.log(`Usage:
   node scripts/diagnose-brilliant-move.js <username> --game <url-or-id> --move <move>
+  node scripts/diagnose-brilliant-move.js <username> --game <url-or-id> --ply <ply>
 
 Example:
   node scripts/diagnose-brilliant-move.js Witty_Alien \\
     --game https://www.chess.com/game/live/97847462193 \\
-    --move "15...fxe4"`);
+    --move "15...fxe4"
+
+  node scripts/diagnose-brilliant-move.js Witty_Alien \\
+    --game 97847462193 \\
+    --ply 30`);
 }
