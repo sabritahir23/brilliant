@@ -1,5 +1,5 @@
 {
-  "name": "brilliant-scanner",
+  "name": "brilliant",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -10,6 +10,8 @@
     "chrome": "node scripts/open-chrome.js",
     "login": "node scripts/open-chrome.js",
     "build-corpus": "node scripts/build-corpus.js",
+    "pgn-batch": "node scripts/run-pgn-batch.js",
+    "diagnose-brilliant": "node scripts/diagnose-brilliant-move.js",
     "install-browser": "npx playwright install chromium"
   },
   "dependencies": {

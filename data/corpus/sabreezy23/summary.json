@@ -1,0 +1,20 @@
+{
+  "username": "sabreezy23",
+  "updatedAt": "2026-05-25T00:26:02.505Z",
+  "totalGames": 4147,
+  "gamesWithPgn": 4113,
+  "prototypeChecked": 1500,
+  "prototypeBrilliantGames": 78,
+  "prototypeBrilliantMoves": 82,
+  "prototypeBrilliantMoveLabelGames": 78,
+  "localChecked": 1500,
+  "localCandidateGames": 91,
+  "localCandidateMoves": 97,
+  "latestGame": {
+    "url": "https://www.chess.com/game/live/169153000372",
+    "white": "Vidadi1961",
+    "black": "sabreezy23",
+    "endTime": 1779600829,
+    "endTimeUtc": "2026-05-24T05:33:49.000Z"
+  }
+}

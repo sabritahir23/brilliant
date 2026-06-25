@@ -1,0 +1,20 @@
+{
+  "username": "7yub",
+  "updatedAt": "2026-05-23T19:20:56.553Z",
+  "totalGames": 292,
+  "gamesWithPgn": 292,
+  "prototypeChecked": 292,
+  "prototypeBrilliantGames": 13,
+  "prototypeBrilliantMoves": 13,
+  "prototypeBrilliantMoveLabelGames": 13,
+  "localChecked": 292,
+  "localCandidateGames": 13,
+  "localCandidateMoves": 13,
+  "latestGame": {
+    "url": "https://www.chess.com/game/live/169105958456",
+    "white": "isaaciob",
+    "black": "7yub",
+    "endTime": 1779512416,
+    "endTimeUtc": "2026-05-23T05:00:16.000Z"
+  }
+}

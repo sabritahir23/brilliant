@@ -1,0 +1,20 @@
+{
+  "username": "hikaru",
+  "updatedAt": "2026-06-01T11:25:56.430Z",
+  "totalGames": 500,
+  "gamesWithPgn": 500,
+  "prototypeChecked": 500,
+  "prototypeBrilliantGames": 65,
+  "prototypeBrilliantMoves": 78,
+  "prototypeBrilliantMoveLabelGames": 65,
+  "localChecked": 0,
+  "localCandidateGames": 0,
+  "localCandidateMoves": 0,
+  "latestGame": {
+    "url": "https://www.chess.com/game/live/169176161244",
+    "white": "Hikaru",
+    "black": "Stay0323",
+    "endTime": 1779640243,
+    "endTimeUtc": "2026-05-24T16:30:43.000Z"
+  }
+}
