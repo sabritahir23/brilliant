@@ -1,98 +1,70 @@
 # Brilliant Scanner
 
-Personal beta scanner for finding Chess.com games with Brilliant-like moves.
+**A local-first tool for finding the moves worth studying across a Chess.com game history.**
 
-The current primary path is a local PGN candidate finder. The original Chess.com
-Game Review UI scraper is still present as the prototype/reference path.
+Brilliant Scanner fetches public games, replays their PGNs, narrows the search with chess-specific heuristics, and asks Stockfish to verify the strongest candidates. It also includes a resumable browser-assisted path for comparing local results with Chess.com Game Review.
 
-## Local PGN Mode
+## How it works
 
-1. Fetches public Chess.com game archives for a username.
-2. Reads the PGN payload returned by the archive API.
-3. Replays each game locally with `chess.js`.
-4. Runs a first-pass brilliancy candidate finder that looks for sacrifice-shaped,
-   forcing moves.
-5. Saves candidate games and move-level details to `data/state.json` and exports.
-
-This mode does not require Chrome login and does not open Chess.com review pages.
-The current candidate finder is intentionally heuristic-only; `src/stockfishAnalyzer.js`
-now verifies candidates with Stockfish.js before counting them.
-
-Useful local-analysis settings:
-
-- `BRILLIANT_STOCKFISH_DEPTH=14` controls verification depth.
-- `BRILLIANT_STOCKFISH_MULTIPV=8` controls how many engine candidate lines are checked.
-- `BRILLIANT_STOCKFISH_ENGINE=full` selects the bundled Stockfish.js engine flavor.
-- `BRILLIANT_STOCKFISH_TIMEOUT_MS=12000` controls the per-search watchdog. If Stockfish does not return `bestmove` in time, the child process is restarted and that candidate is rejected instead of hanging the scan.
-
-The latest 7yub Chess.com Review benchmark is shelved in `data/reference/` so
-local runs can overwrite `data/state.json` without losing the original 10/248
-reference result.
-
-## Per-Player Corpus
-
-The scanner now keeps one merged per-player corpus under `data/corpus/<username>/`.
-For 7yub, the main file is:
-
-```txt
-data/corpus/7yub/games.jsonl
+```mermaid
+flowchart LR
+    A[Chess.com public archives] --> B[PGN replay with chess.js]
+    B --> C[Forcing-move and sacrifice heuristics]
+    C --> D[Stockfish multi-PV verification]
+    D --> E[Candidate corpus + exports]
+    F[Optional Game Review comparison] --> E
+    E --> G[Local Express dashboard]
 ```
 
-Each line is one game with PGN plus any available review metadata:
+## Engineering highlights
 
-- `prototype` contains official Chess.com Review scrape results.
-- `local` contains heuristic/Stockfish candidate results.
+- **Two-stage analysis:** inexpensive chess heuristics reduce the search space before deeper engine work.
+- **Explainable candidates:** move records retain tactical signals such as material investment, forcing play, king pressure, and engine evaluation.
+- **Resumable by design:** progress and per-player corpora are written incrementally, with atomic file replacement and retry handling for transient writes.
+- **Bounded failure:** Stockfish searches use a watchdog and restart the child process instead of letting one position hang an entire scan.
+- **Evaluation tooling:** scripts build labeled datasets, score detector regressions, diagnose failure buckets, tune thresholds, and train a small ranking model.
+- **Separate truth sources:** local detections and optional Chess.com Review observations are stored independently so comparisons remain meaningful.
 
-Use `npm run build-corpus -- 7yub` to rebuild the corpus from the saved prototype
-reference and the current `data/state.json`.
-
-From the local UI:
-
-- `Update Official Review Baseline` scans only games newer than the saved
-  prototype reference baseline.
-- `Fill Official Brilliant Moves` revisits known official Brilliant games that
-  have a count but no exact move labels yet.
-
-## Prototype Review Scanner
-
-1. Fetches public Chess.com game archives for a username.
-2. Attaches to a normal Google Chrome window that you logged into manually.
-3. Reads the Game Review summary table.
-4. Saves games where your own Brilliant count is greater than zero.
-5. Persists progress to `data/state.json` so the scan can resume.
-
-This uses Chess.com's visible review UI, not a private API. If Chess.com changes the page, asks you to log in again, rate limits, or blocks review pages, those games are recorded as errors and the scan continues.
-
-## Setup
+## Quick start: local PGN analysis
 
 ```bash
 npm install
+npm start
+```
+
+Then open [http://localhost:5050](http://localhost:5050) and enter a Chess.com username. The primary local path uses public archive data and does not require a Chess.com login.
+
+## Optional Game Review comparison
+
+```bash
 npm run install-browser
 npm run chrome
 npm start
 ```
 
-After `npm run chrome`, a regular Google Chrome window opens. Log into Chess.com manually in that window, leave the window open, then use the scanner page. This avoids trying to solve Chess.com's robot checks inside a Playwright-launched login browser.
+Log in manually in the Chrome window opened by the script, then leave that window available while the scanner runs. This path reads the visible Game Review interface; it does not use a private Chess.com API or attempt to bypass login and robot checks.
 
-If the first scanned game still lands on a Chess.com login or robot-check page, the scanner pauses and leaves that Chrome tab open. Log in or approve the phone prompt in that same tab, then click `Start / Resume` on the scanner page with `Resume saved progress` checked.
+## Useful settings
 
-Open:
+| Variable | Purpose | Default |
+| --- | --- | --- |
+| `BRILLIANT_STOCKFISH_DEPTH` | Engine search depth | `14` |
+| `BRILLIANT_STOCKFISH_MULTIPV` | Candidate lines checked per position | `8` |
+| `BRILLIANT_STOCKFISH_TIMEOUT_MS` | Per-search watchdog | `12000` |
+| `BRILLIANT_DELAY_MS` | Delay between review pages | `5000` |
+| `BRILLIANT_REVIEW_TIMEOUT_MS` | Review-page timeout | `90000` |
 
-```txt
-http://localhost:5050
+## Repository map
+
+```text
+src/      scanner, state management, chess heuristics, and Stockfish integration
+scripts/  corpus building, regression scoring, diagnostics, and model training
+public/   local dashboard
+data/     ignored runtime state plus selected reference corpora
 ```
 
-## Runtime Notes
+## Limits and responsible use
 
-- The scanner opens one page at a time and closes it after checking the game.
-- Default delay between games is 5 seconds.
-- Set `BRILLIANT_DELAY_MS=8000` to slow the scan down.
-- Set `BRILLIANT_REVIEW_TIMEOUT_MS=90000` if review pages load slowly.
-- The scanner connects to Chrome at `http://127.0.0.1:9222`. Set `BRILLIANT_CDP_URL` only if you need a different port.
-- The old Playwright-launched browser mode is disabled by default. Set `BRILLIANT_USE_PLAYWRIGHT_BROWSER=true` only if you intentionally want to try it again.
-
-## Known Limits
-
-- This is best-effort official UI scraping, not an official Chess.com API integration.
-- Some games may need review generation, premium access, or manual intervention.
-- If Chess.com presents login, CAPTCHA, rate limiting, or an unavailable review page, the game is logged as an error.
+- “Brilliant” is not a universal chess-engine label; the local detector finds evidence-backed candidates, not an official classification.
+- The browser-assisted comparison is best-effort and may pause on login, CAPTCHA, rate limits, or unavailable reviews.
+- The scanner is intended for personal analysis of public game archives. Use conservative request rates and respect Chess.com’s terms and service limits.
